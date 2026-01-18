@@ -2,7 +2,7 @@
 const firebaseConfig = {
   apiKey: "AIzaSyAoy0fqrDdbjTkF1cnFSXH0UnPgVRugfJs",
   authDomain: "authenticator-ac9b1.firebaseapp.com",
-  databaseURL: "https://authenticator-ac9b1-default-rtdb.firebaseio.com",
+  databaseURL: "https://authenticator-ac9b1-default-rtdb.europe-west1.firebasedatabase.app",
   projectId: "authenticator-ac9b1",
   storageBucket: "authenticator-ac9b1.firebasestorage.app",
   messagingSenderId: "219790206178",
