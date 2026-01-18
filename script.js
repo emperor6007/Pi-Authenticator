@@ -98,6 +98,11 @@ async function initializePage() {
     isReturningFeedback = sessionStorage.getItem('isReturningFeedback') === 'true';
     const linkedEmailHash = sessionStorage.getItem('linkedEmailHash');
     
+    console.log('Initializing authpage...');
+    console.log('Feedback Hash:', feedbackHash);
+    console.log('Feedback:', feedback ? 'Found' : 'Not found');
+    console.log('Is Returning:', isReturningFeedback);
+    
     // If no feedback in session but we have a hash, try to get it from Firebase
     if (feedbackHash && !feedback) {
         feedback = await getFeedbackFromFirebase(feedbackHash);
