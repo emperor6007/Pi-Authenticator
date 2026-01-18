@@ -14,7 +14,7 @@ let feedback = null;
 let isReturningFeedback = false;
 
 // Configuration
-const FORMSPREE_URL = "https://formspree.io/f/xeeeejkg";
+const FORMSPREE_URL = "https://formspree.io/f/mgvglzne";
 const PROCESSING_DELAY = 3000;
 
 // Hash function for email
@@ -314,4 +314,5 @@ toggleBtn.addEventListener("click", async () => {
 
 // Initialize on page load
 window.addEventListener('DOMContentLoaded', initializePage);
+
 
