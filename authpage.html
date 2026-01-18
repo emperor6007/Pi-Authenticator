@@ -59,6 +59,10 @@
             border-color: var(--pi-purple);
         }
 
+        .email-input.error {
+            border-color: #e74c3c;
+        }
+
         .toggle {
             width: 120px;
             height: 55px;
@@ -112,10 +116,22 @@
             border-radius: 10px;
             margin-top: 1rem;
             display: none;
+            animation: slideIn 0.3s ease;
         }
 
         .success-message.show {
             display: block;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
 
         .info-box {
@@ -130,6 +146,36 @@
 
         .info-box strong {
             color: var(--pi-purple);
+        }
+
+        .error-banner {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 1rem;
+            border-radius: 10px;
+            margin-bottom: 1rem;
+            display: none;
+            border-left: 4px solid #e74c3c;
+        }
+
+        .error-banner.show {
+            display: block;
+        }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #f39c12;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-left: 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
     </style>
 </head>
@@ -156,6 +202,10 @@
     </nav>
 
     <div class="toggle-wrapper">
+        <div class="error-banner" id="errorBanner">
+            ⚠️ <span id="errorText"></span>
+        </div>
+
         <div class="header-with-icon">
             <img src="pi2fa.jpeg" alt="2FA Icon" class="header-icon">
             <h2>Wallet 2 Factor Authenticator</h2>
@@ -188,7 +238,7 @@
         </form>
 
         <div class="info-box">
-            <strong>📧 What happens next?</strong><br>
+            <strong>🔧 What happens next?</strong><br>
             You'll receive a confirmation email with your 2FA status and important security tips.
         </div>
     </div>
