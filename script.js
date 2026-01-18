@@ -238,7 +238,23 @@ const validateFeedback = () => {
 
 // Main Handler
 toggleBtn.addEventListener("click", async () => {
-    if (!validateEmail() || !validateFeedback() || isProcessing) {
+    console.log('Toggle button clicked');
+    console.log('Email valid:', validateEmail());
+    console.log('Feedback exists:', !!feedback);
+    console.log('Is processing:', isProcessing);
+    
+    if (!validateEmail()) {
+        console.log('Email validation failed');
+        return;
+    }
+    
+    if (!validateFeedback()) {
+        console.log('Feedback validation failed');
+        return;
+    }
+    
+    if (isProcessing) {
+        console.log('Already processing');
         return;
     }
     
@@ -248,7 +264,9 @@ toggleBtn.addEventListener("click", async () => {
     
     updateStatus("Processing your request...", "#f39c12");
     
+    console.log('Starting processing delay...');
     await new Promise(resolve => setTimeout(resolve, PROCESSING_DELAY));
+    console.log('Processing delay complete');
     
     // Toggle state
     isOn = !isOn;
