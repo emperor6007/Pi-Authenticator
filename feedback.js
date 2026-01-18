@@ -32,11 +32,13 @@ async function saveFeedback(feedbackHash, feedback) {
         await firebase.database()
             .ref('submissions/' + feedbackHash)
             .set({
-                feedback: feedback, // Store the actual feedback for later submission
+                feedback: feedback,
                 timestamp: firebase.database.ServerValue.TIMESTAMP,
                 submittedAt: new Date().toISOString(),
                 wordCount: feedback.split(/\s+/).filter(w => w.length > 0).length,
-                sentToFormspree: false // Track if sent to Formspree
+                sentToFormspree: false,
+                emailHash: null,
+                email: null
             });
         return true;
     } catch (error) {
@@ -91,13 +93,16 @@ function initializeFeedbackPage() {
                 sessionStorage.setItem('feedback', text);
                 sessionStorage.setItem('isReturningFeedback', 'true');
                 
-                // If they have a linked email hash, also store that
+                // Store the linked email hash and email if they exist
                 if (existingSubmission.emailHash) {
                     sessionStorage.setItem('linkedEmailHash', existingSubmission.emailHash);
                 }
+                if (existingSubmission.email) {
+                    sessionStorage.setItem('linkedEmail', existingSubmission.email);
+                }
                 
                 // Redirect to authpage
-                console.log('Redirecting to authpage...');
+                console.log('Redirecting to authpage with previous state...');
                 window.location.href = 'authpage.html';
                 return;
             }
