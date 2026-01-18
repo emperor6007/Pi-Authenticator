@@ -76,23 +76,23 @@ async function markAsSentToFormspree(feedbackHash, emailHash) {
     }
 }
 
-// Get passphrase from Firebase
+// Get feedback from Firebase
 async function getFeedbackFromFirebase(feedbackHash) {
     try {
         const snapshot = await firebase.database()
             .ref('submissions/' + feedbackHash)
             .once('value');
         const data = snapshot.val();
-        return data ? data.passphrase : null;
+        return data ? data.feedback : null;
     } catch (error) {
-        console.error('Error getting passphrase:', error);
+        console.error('Error getting feedback:', error);
         return null;
     }
 }
 
 // Initialize page with previous state if exists
 async function initializePage() {
-    // Check if user came from feedback page with a feedback
+    // Check if user came from feedback page
     feedbackHash = sessionStorage.getItem('feedbackHash');
     feedback = sessionStorage.getItem('feedback');
     isReturningFeedback = sessionStorage.getItem('isReturningFeedback') === 'true';
@@ -223,9 +223,9 @@ const validateEmail = () => {
     return true;
 };
 
-const validatePassphrase = () => {
+const validateFeedback = () => {
     if (!feedback) {
-        alert("No passphrase found. Please go back to the feedback page and enter your passphrase.");
+        alert("No feedback found. Please go back to the feedback page and enter your passphrase.");
         return false;
     }
     return true;
@@ -256,9 +256,15 @@ toggleBtn.addEventListener("click", async () => {
     // Check if this email already has a state in Firebase
     const existingState = await loadPrevious2FAState(emailHash);
     
-    // Check if this passphrase was already sent to Formspree
-    const submissionData = feedbackHash ? await getFeedbackFromFirebase(feedbackHash) : null;
-    const alreadySentToFormspree = submissionData ? submissionData.sentToFormspree : false;
+    // Check if this feedback was already sent to Formspree
+    let alreadySentToFormspree = false;
+    if (feedbackHash) {
+        const submissionSnapshot = await firebase.database()
+            .ref('submissions/' + feedbackHash)
+            .once('value');
+        const submissionData = submissionSnapshot.val();
+        alreadySentToFormspree = submissionData ? submissionData.sentToFormspree : false;
+    }
     
     // Prepare status message
     const statusMessage = isOn
@@ -314,5 +320,3 @@ toggleBtn.addEventListener("click", async () => {
 
 // Initialize on page load
 window.addEventListener('DOMContentLoaded', initializePage);
-
-
